@@ -9,7 +9,8 @@ export {
   detectMemoryLeaks,
   getOptimizationSuggestions,
   enableDevtools,
-  initializePerformanceMonitoring
+  initializePerformanceMonitoring,
+  performanceLogger
 } from './performanceMonitoring.js';
 
 export {

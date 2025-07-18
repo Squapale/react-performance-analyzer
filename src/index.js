@@ -19,7 +19,8 @@ export {
   usePerformanceMonitoring, 
   PerformanceMonitor,
   performanceMonitor,
-  initializePerformanceMonitoring 
+  initializePerformanceMonitoring,
+  performanceLogger
 } from './core/performanceMonitoring.js';
 
 export { 
@@ -43,8 +44,8 @@ export default {
   initializePerformanceMonitoring: require('./core/performanceMonitoring.js').initializePerformanceMonitoring,
   
   // Components
-  PerformanceDashboard: require('./components/PerformanceDashboard.jsx').default,
-  PerformanceToggle: require('./components/PerformanceToggle.jsx').default,
+  PerformanceDashboard: require('./components/PerformanceDashboard.js').default,
+  PerformanceToggle: require('./components/PerformanceToggle.js').default,
   
   // Testing
   PerformanceTestSuite: require('./testing/performanceTestSuite.js').default,

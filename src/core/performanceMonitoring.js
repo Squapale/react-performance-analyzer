@@ -499,3 +499,45 @@ export const initializePerformanceMonitoring = (config = {}) => {
 if (typeof window !== 'undefined') {
   enableDevtools();
 }
+
+// Performance Logger - Utility for logging performance-related information
+export const performanceLogger = {
+  info: (message, data = null) => {
+    console.log(`🔍 [Performance Info]: ${message}`, data ? data : '');
+  },
+  
+  warn: (message, data = null) => {
+    console.warn(`⚠️ [Performance Warning]: ${message}`, data ? data : '');
+  },
+  
+  error: (message, data = null) => {
+    console.error(`❌ [Performance Error]: ${message}`, data ? data : '');
+  },
+  
+  timing: (label, startTime, endTime = performance.now()) => {
+    const duration = endTime - startTime;
+    console.log(`⏱️ [Performance Timing] ${label}: ${duration.toFixed(2)}ms`);
+    return duration;
+  },
+  
+  memory: () => {
+    if (performance.memory) {
+      const memory = {
+        used: (performance.memory.usedJSHeapSize / 1024 / 1024).toFixed(2) + 'MB',
+        total: (performance.memory.totalJSHeapSize / 1024 / 1024).toFixed(2) + 'MB',
+        limit: (performance.memory.jsHeapSizeLimit / 1024 / 1024).toFixed(2) + 'MB'
+      };
+      console.log('💾 [Memory Usage]:', memory);
+      return memory;
+    } else {
+      console.warn('⚠️ Memory measurement not available in this environment');
+      return null;
+    }
+  },
+  
+  table: (data, label = 'Performance Data') => {
+    console.group(`📊 ${label}`);
+    console.table(data);
+    console.groupEnd();
+  }
+};

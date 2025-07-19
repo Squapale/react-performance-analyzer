@@ -7,15 +7,18 @@ This guide provides comprehensive instructions for using the performance analysi
 ## 📋 Table of Contents
 
 1. [Getting Started](#getting-started)
-2. [Performance Dashboard](#performance-dashboard)
-3. [Browser Console Tools](#browser-console-tools)
-4. [Component Performance Analysis](#component-performance-analysis)
-5. [Memory Analysis](#memory-analysis)
-6. [Performance Comparison](#performance-comparison)
-7. [Automated Testing](#automated-testing)
-8. [Real-World Usage Examples](#real-world-usage-examples)
-9. [Troubleshooting](#troubleshooting)
-10. [Advanced Features](#advanced-features)
+2. [React Hooks & Components](#react-hooks--components)
+3. [Higher Order Components (HOC)](#higher-order-components-hoc)
+4. [Performance Logger](#performance-logger)
+5. [Performance Dashboard](#performance-dashboard)
+6. [Browser Console Tools](#browser-console-tools)
+7. [Component Performance Analysis](#component-performance-analysis)
+8. [Memory Analysis](#memory-analysis)
+9. [Performance Comparison](#performance-comparison)
+10. [Automated Testing](#automated-testing)
+11. [Real-World Usage Examples](#real-world-usage-examples)
+12. [Troubleshooting](#troubleshooting)
+13. [Advanced Features](#advanced-features)
 
 ---
 
@@ -39,6 +42,330 @@ This guide provides comprehensive instructions for using the performance analysi
 1. **Visual Dashboard**: Look for the floating speed icon (⚡) in bottom-right corner
 2. **Console Access**: Open browser console and try `performanceAnalysis.quickCheck()`
 3. **Component Monitoring**: Navigate through your app to generate performance data
+
+---
+
+## ⚛️ React Hooks & Components
+
+### Performance Monitoring Hook
+
+The `usePerformanceMonitoring` hook provides component-level performance tracking with timing utilities.
+
+#### Basic Usage
+
+```javascript
+import { usePerformanceMonitoring } from 'performance-analyzer-lib';
+
+function MyComponent() {
+  const { startTiming, endTiming, getMetrics, metrics } = usePerformanceMonitoring('MyComponent');
+
+  const handleDataFetch = async () => {
+    startTiming('data-fetch');
+    
+    try {
+      const response = await fetch('/api/data');
+      const data = await response.json();
+      return data;
+    } finally {
+      const duration = endTiming('data-fetch');
+      console.log(`Data fetch took ${duration}ms`);
+    }
+  };
+
+  const handleComplexCalculation = () => {
+    startTiming('calculation');
+    
+    // Expensive calculation
+    const result = heavyComputation();
+    
+    endTiming('calculation');
+    return result;
+  };
+
+  // View current metrics
+  console.log('Component metrics:', metrics);
+
+  return (
+    <div>
+      <button onClick={handleDataFetch}>Fetch Data</button>
+      <button onClick={handleComplexCalculation}>Calculate</button>
+      <pre>{JSON.stringify(getMetrics(), null, 2)}</pre>
+    </div>
+  );
+}
+```
+
+#### Advanced Hook Usage
+
+```javascript
+function OptimizedComponent() {
+  const { startTiming, endTiming, getMetrics } = usePerformanceMonitoring('OptimizedComponent');
+
+  // Monitor effect performance
+  useEffect(() => {
+    startTiming('effect-setup');
+    
+    // Setup expensive operations
+    const subscription = subscribeToData();
+    
+    endTiming('effect-setup');
+
+    return () => {
+      startTiming('effect-cleanup');
+      subscription.unsubscribe();
+      endTiming('effect-cleanup');
+    };
+  }, []);
+
+  // Monitor render performance
+  useLayoutEffect(() => {
+    startTiming('layout-effect');
+    
+    // DOM measurements
+    const element = ref.current;
+    if (element) {
+      const rect = element.getBoundingClientRect();
+      updateLayout(rect);
+    }
+    
+    endTiming('layout-effect');
+  });
+
+  return <div ref={ref}>Content</div>;
+}
+```
+
+### Simple Performance Hook
+
+The `usePerformanceMonitor` hook provides basic component lifecycle monitoring.
+
+```javascript
+import { usePerformanceMonitor } from 'performance-analyzer-lib';
+
+function BasicComponent() {
+  // Automatically tracks component mount/unmount time
+  usePerformanceMonitor('BasicComponent');
+
+  return <div>This component is automatically monitored</div>;
+}
+```
+
+---
+
+## 🔄 Higher Order Components (HOC)
+
+### Performance Monitoring HOC
+
+The `withPerformanceMonitoring` HOC wraps components to automatically track render performance.
+
+#### Basic HOC Usage
+
+```javascript
+import { withPerformanceMonitoring } from 'performance-analyzer-lib';
+
+// Original component
+const ExpensiveComponent = ({ data }) => {
+  const processedData = useMemo(() => {
+    return data.map(item => ({
+      ...item,
+      processed: heavyCalculation(item)
+    }));
+  }, [data]);
+
+  return (
+    <div>
+      {processedData.map(item => (
+        <div key={item.id}>{item.processed}</div>
+      ))}
+    </div>
+  );
+};
+
+// Wrap with performance monitoring
+const MonitoredExpensiveComponent = withPerformanceMonitoring(
+  ExpensiveComponent, 
+  'ExpensiveComponent'
+);
+
+// Use the monitored component
+function App() {
+  return (
+    <div>
+      <MonitoredExpensiveComponent data={largeDataset} />
+    </div>
+  );
+}
+```
+
+#### HOC with Class Components
+
+```javascript
+import React, { Component } from 'react';
+import { withPerformanceMonitoring } from 'performance-analyzer-lib';
+
+class LegacyComponent extends Component {
+  componentDidMount() {
+    // Expensive setup
+    this.setupExpensiveOperation();
+  }
+
+  render() {
+    return (
+      <div>
+        <h1>Legacy Component</h1>
+        {this.props.items.map(item => (
+          <div key={item.id}>{item.value}</div>
+        ))}
+      </div>
+    );
+  }
+}
+
+// Monitor the class component
+const MonitoredLegacyComponent = withPerformanceMonitoring(
+  LegacyComponent,
+  'LegacyComponent'
+);
+
+export default MonitoredLegacyComponent;
+```
+
+#### HOC Best Practices
+
+```javascript
+// ✅ Good: Use descriptive component names
+const MonitoredComponent = withPerformanceMonitoring(MyComponent, 'UserDashboard');
+
+// ✅ Good: Monitor key components that impact performance
+const CriticalComponents = [
+  withPerformanceMonitoring(DataTable, 'DataTable'),
+  withPerformanceMonitoring(ChartComponent, 'ChartComponent'),
+  withPerformanceMonitoring(FilterPanel, 'FilterPanel')
+];
+
+// ✅ Good: Use in development, consider removing in production
+const ComponentToMonitor = process.env.NODE_ENV === 'development' 
+  ? withPerformanceMonitoring(Component, 'ComponentName')
+  : Component;
+
+// ❌ Avoid: Wrapping every single component
+// Only monitor components where performance matters
+```
+
+---
+
+## 📝 Performance Logger
+
+### Logger Overview
+
+The `performanceLogger` provides structured logging for performance-related information with categorized output.
+
+#### Basic Logger Usage
+
+```javascript
+import { performanceLogger } from 'performance-analyzer-lib';
+
+function MyComponent() {
+  useEffect(() => {
+    performanceLogger.info('Component mounted', { component: 'MyComponent' });
+    
+    const startTime = performance.now();
+    
+    fetchData()
+      .then(data => {
+        const endTime = performance.now();
+        performanceLogger.timing('Data fetch', startTime, endTime);
+        performanceLogger.info('Data loaded successfully', { 
+          recordCount: data.length,
+          duration: endTime - startTime 
+        });
+      })
+      .catch(error => {
+        performanceLogger.error('Data fetch failed', { 
+          error: error.message,
+          component: 'MyComponent'
+        });
+      });
+
+    return () => {
+      performanceLogger.info('Component unmounting', { component: 'MyComponent' });
+    };
+  }, []);
+}
+```
+
+#### Logger Methods
+
+```javascript
+// Information logging
+performanceLogger.info('Operation completed', { operation: 'dataProcessing' });
+
+// Warning logging
+performanceLogger.warn('Slow operation detected', { 
+  operation: 'rendering',
+  duration: 25,
+  threshold: 16 
+});
+
+// Error logging
+performanceLogger.error('Performance threshold exceeded', { 
+  component: 'DataTable',
+  renderTime: 45,
+  limit: 16 
+});
+
+// Timing operations
+const startTime = performance.now();
+// ... operation ...
+performanceLogger.timing('Heavy calculation', startTime);
+
+// Memory usage
+performanceLogger.memory(); // Shows current memory usage
+
+// Tabular data
+const performanceData = {
+  component1: { renderTime: 12, memory: 1024 },
+  component2: { renderTime: 8, memory: 512 },
+  component3: { renderTime: 22, memory: 2048 }
+};
+performanceLogger.table(performanceData, 'Component Performance');
+```
+
+#### Advanced Logger Usage
+
+```javascript
+// Create a performance-aware async function
+async function performanceAwareOperation(operationName, asyncFn, ...args) {
+  performanceLogger.info(`Starting ${operationName}`);
+  const startTime = performance.now();
+  
+  try {
+    const result = await asyncFn(...args);
+    const duration = performanceLogger.timing(operationName, startTime);
+    
+    if (duration > 1000) {
+      performanceLogger.warn(`Slow operation: ${operationName}`, { duration });
+    } else {
+      performanceLogger.info(`Operation completed: ${operationName}`, { duration });
+    }
+    
+    return result;
+  } catch (error) {
+    performanceLogger.error(`Operation failed: ${operationName}`, { 
+      error: error.message,
+      duration: performance.now() - startTime 
+    });
+    throw error;
+  }
+}
+
+// Usage
+const data = await performanceAwareOperation(
+  'fetchUserData',
+  fetch,
+  '/api/users'
+);
+```
 
 ---
 
@@ -809,6 +1136,46 @@ performanceAnalysis.checkMemoryLeaks()
 
 // Performance tests
 performanceAnalysis.runPerformanceTests()
+```
+
+### React Integration Commands
+```javascript
+// Import hooks and HOCs
+import { 
+  usePerformanceMonitoring,
+  usePerformanceMonitor,
+  withPerformanceMonitoring,
+  performanceLogger,
+  initializePerformanceMonitoring
+} from 'performance-analyzer-lib';
+
+// Hook usage
+const { startTiming, endTiming, getMetrics } = usePerformanceMonitoring('ComponentName');
+
+// HOC usage
+const MonitoredComponent = withPerformanceMonitoring(MyComponent, 'MyComponent');
+
+// Logger usage
+performanceLogger.info('Operation completed');
+performanceLogger.timing('Operation', startTime);
+performanceLogger.memory();
+```
+
+### Advanced API Commands
+```javascript
+// Bundle analysis
+analyzeBundleSize().then(analysis => console.log(analysis));
+
+// Memory leak detection
+const stopMonitoring = detectMemoryLeaks();
+
+// Optimization suggestions
+getOptimizationSuggestions('ComponentName');
+
+// Direct monitor access
+window.performanceMonitor.getPerformanceData();
+window.performanceMonitor.recordRender('Component', 15.5);
+window.performanceMonitor.clearData();
 ```
 
 ### Key Performance Indicators

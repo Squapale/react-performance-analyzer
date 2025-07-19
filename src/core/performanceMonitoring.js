@@ -215,7 +215,7 @@ export const usePerformanceMonitoring = (componentName) => {
 
 // HOC for performance monitoring
 export const withPerformanceMonitoring = (WrappedComponent, componentName) => {
-  return React.memo((props) => {
+  const PerformanceMonitoredComponent = React.memo((props) => {
     const renderStartTime = React.useRef(performance.now());
     
     React.useEffect(() => {
@@ -231,6 +231,10 @@ export const withPerformanceMonitoring = (WrappedComponent, componentName) => {
     
     return <WrappedComponent {...props} />;
   });
+  
+  PerformanceMonitoredComponent.displayName = `withPerformanceMonitoring(${WrappedComponent.displayName || WrappedComponent.name || 'Component'})`;
+  
+  return PerformanceMonitoredComponent;
 };
 
 // Bundle analysis utilities

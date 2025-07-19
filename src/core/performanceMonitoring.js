@@ -177,7 +177,7 @@ export class PerformanceMonitor {
 
   // New: Performance Budget Management
   setPerformanceBudget(budgetType, value) {
-    if (this.performanceBudgets.hasOwnProperty(budgetType)) {
+    if (Object.prototype.hasOwnProperty.call(this.performanceBudgets, budgetType)) {
       this.performanceBudgets[budgetType] = value;
       console.log(`📊 Performance budget set: ${budgetType} = ${value}`);
     } else {
@@ -476,10 +476,7 @@ export const usePerformanceMonitoring = (componentName) => {
         window.performanceMonitor.checkPerformanceBudgets();
         
         // Track component dependency if parent component is known
-        const parentComponent = React.useContext(PerformanceContext)?.parentComponent;
-        if (parentComponent) {
-          window.performanceMonitor.trackComponentDependency(parentComponent, componentName, duration);
-        }
+        // Note: This would need to be moved inside the component hook if needed
       }
       
       startTimeRef.current = null;

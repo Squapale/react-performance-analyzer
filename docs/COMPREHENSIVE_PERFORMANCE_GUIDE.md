@@ -969,7 +969,392 @@ window.performanceMonitor?.clearData();
 
 ## 🚀 Advanced Features
 
-### 1. **Custom Performance Monitoring**
+### 1. **Performance Budget Monitoring**
+
+The Performance Budget Monitor helps you set and track performance thresholds to ensure your application meets performance targets.
+
+#### Setting Performance Budgets
+
+```javascript
+// Set performance budgets for your application
+performanceAnalysis.setPerformanceBudgets({
+  maxRenderTime: 16,        // Maximum render time in ms (for 60fps)
+  maxMemoryUsage: 50,       // Maximum memory usage in MB
+  maxLoadTime: 1000,        // Maximum load time in ms
+  maxBundleSize: 2          // Maximum bundle size in MB
+});
+
+// Check current budget status
+const budgetStatus = performanceAnalysis.checkBudgetStatus();
+console.log('Budget compliance:', budgetStatus);
+```
+
+#### Budget Monitoring Features
+
+```javascript
+// Get detailed budget analysis
+const budgetReport = performanceAnalysis.checkBudgetStatus();
+
+// Example output:
+{
+  compliant: false,
+  violations: [
+    {
+      metric: 'renderTime',
+      current: 25.5,
+      budget: 16,
+      violation: 59.4,
+      severity: 'high'
+    }
+  ],
+  score: 75,
+  recommendations: [
+    'Consider optimizing components with render times > 16ms',
+    'Use React.memo() for frequently re-rendering components'
+  ]
+}
+```
+
+#### Automated Budget Checking
+
+```javascript
+// Set up automated budget checking
+const monitorBudgets = () => {
+  setInterval(() => {
+    const status = performanceAnalysis.checkBudgetStatus();
+    if (!status.compliant) {
+      console.warn('⚠️ Performance budget violations detected:', status.violations);
+      
+      // Optionally send alerts or notifications
+      if (status.violations.some(v => v.severity === 'critical')) {
+        console.error('🚨 Critical performance issues detected!');
+      }
+    }
+  }, 30000); // Check every 30 seconds
+};
+
+// Start monitoring
+monitorBudgets();
+```
+
+### 2. **Component Dependency Tracking**
+
+Track performance relationships between components to identify bottlenecks in your component hierarchy.
+
+#### Basic Dependency Analysis
+
+```javascript
+// Analyze component dependencies
+const dependencyReport = performanceAnalysis.analyzeDependencies();
+console.log('Component dependencies:', dependencyReport);
+
+// Example output:
+{
+  dependencies: {
+    'ParentComponent': {
+      children: ['ChildComponent1', 'ChildComponent2'],
+      avgRenderTime: 45.2,
+      impact: 'high'
+    }
+  },
+  bottlenecks: [
+    {
+      component: 'ParentComponent',
+      reason: 'Slow parent affects 5 child components',
+      recommendation: 'Optimize ParentComponent rendering'
+    }
+  ],
+  optimizationPriority: ['ParentComponent', 'ChildComponent1']
+}
+```
+
+#### Advanced Dependency Tracking
+
+```javascript
+// Track specific component relationships
+const trackComponentRelationship = (parentName, childName) => {
+  // This happens automatically when using the performance hooks
+  // But you can also manually track relationships
+  
+  console.log(`Tracking relationship: ${parentName} -> ${childName}`);
+  
+  // Get relationship performance data
+  const relationship = performanceAnalysis.analyzeDependencies()
+    .dependencies[parentName];
+    
+  if (relationship && relationship.children.includes(childName)) {
+    console.log(`${childName} is affected by ${parentName} performance`);
+  }
+};
+
+// Example usage
+trackComponentRelationship('Dashboard', 'UserProfile');
+```
+
+#### Dependency Performance Optimization
+
+```javascript
+// Get optimization suggestions based on dependencies
+const getOptimizationPlan = () => {
+  const dependencies = performanceAnalysis.analyzeDependencies();
+  
+  // Priority optimization plan
+  const plan = dependencies.optimizationPriority.map(component => ({
+    component,
+    currentPerformance: window.performanceMonitor
+      .getPerformanceData().componentMetrics[component],
+    recommendations: [
+      `Optimize ${component} to improve dependent components`,
+      `Consider memoization for ${component}`,
+      `Check for unnecessary re-renders in ${component}`
+    ]
+  }));
+  
+  console.log('Optimization plan:', plan);
+  return plan;
+};
+```
+
+### 3. **Performance Profiling Sessions**
+
+Conduct detailed performance profiling sessions to analyze your application's behavior over time.
+
+#### Starting a Profiling Session
+
+```javascript
+// Start a comprehensive profiling session
+const sessionId = performanceAnalysis.startProfilingSession({
+  duration: 60000,          // Profile for 60 seconds
+  interval: 1000,           // Take snapshots every second
+  includeMemory: true,      // Include memory profiling
+  includeNetwork: false,    // Skip network profiling
+  components: ['Dashboard', 'UserProfile'] // Focus on specific components
+});
+
+console.log(`Profiling session started: ${sessionId}`);
+```
+
+#### Taking Manual Snapshots
+
+```javascript
+// Take manual performance snapshots during profiling
+const snapshot = performanceAnalysis.takeSnapshot('user-interaction');
+
+// Example snapshot data:
+{
+  timestamp: '2025-07-19T08:53:00.000Z',
+  label: 'user-interaction',
+  performance: {
+    renderTimes: [12.5, 8.3, 15.7],
+    memoryUsage: 45.2,
+    componentMetrics: {
+      'Dashboard': { renderTime: 12.5, renderCount: 1 }
+    }
+  },
+  userAction: 'Button click on Dashboard'
+}
+```
+
+#### Ending and Analyzing Profiling Sessions
+
+```javascript
+// End the profiling session and get comprehensive report
+const profilingReport = performanceAnalysis.endProfilingSession(sessionId);
+
+console.log('Profiling complete:', profilingReport);
+
+// Example report structure:
+{
+  sessionId: 'session_1642589580000',
+  duration: 60000,
+  snapshots: 60,
+  performance: {
+    avgRenderTime: 14.2,
+    maxRenderTime: 28.5,
+    minRenderTime: 6.1,
+    memoryTrend: 'stable',
+    performanceScore: 82
+  },
+  insights: [
+    'Performance is generally good',
+    'Component "Dashboard" had 3 slow renders',
+    'Memory usage remained stable throughout session'
+  ],
+  recommendations: [
+    'Optimize Dashboard component for better consistency',
+    'Consider lazy loading for non-critical components'
+  ]
+}
+```
+
+#### Advanced Profiling Features
+
+```javascript
+// Profile specific user interactions
+const profileUserInteraction = async (interactionName, interaction) => {
+  const sessionId = performanceAnalysis.startProfilingSession({
+    duration: 10000,
+    interval: 100
+  });
+  
+  // Take before snapshot
+  performanceAnalysis.takeSnapshot(`before-${interactionName}`);
+  
+  // Execute the interaction
+  await interaction();
+  
+  // Take after snapshot
+  performanceAnalysis.takeSnapshot(`after-${interactionName}`);
+  
+  // End session and analyze
+  const report = performanceAnalysis.endProfilingSession(sessionId);
+  
+  console.log(`Interaction "${interactionName}" performance:`, report);
+  return report;
+};
+
+// Example usage
+profileUserInteraction('data-filter', async () => {
+  // Simulate user filtering data
+  document.querySelector('#filter-input').value = 'test';
+  document.querySelector('#filter-button').click();
+  await new Promise(resolve => setTimeout(resolve, 2000));
+});
+```
+
+### 4. **Performance Diagnostics Suite**
+
+Run comprehensive diagnostics to identify and resolve performance issues.
+
+#### Full Diagnostic Scan
+
+```javascript
+// Run complete performance diagnostics
+const diagnostics = performanceAnalysis.runPerformanceDiagnostics();
+
+console.log('Performance diagnostics:', diagnostics);
+
+// Example diagnostic report:
+{
+  overall: {
+    score: 75,
+    grade: 'B',
+    status: 'good'
+  },
+  issues: [
+    {
+      type: 'slow-component',
+      component: 'DataTable',
+      severity: 'medium',
+      description: 'Component renders slower than recommended',
+      recommendation: 'Consider virtualization for large datasets'
+    },
+    {
+      type: 'memory-trend',
+      severity: 'low',
+      description: 'Minor memory growth detected',
+      recommendation: 'Monitor for potential memory leaks'
+    }
+  ],
+  optimizations: [
+    {
+      priority: 'high',
+      component: 'DataTable',
+      strategy: 'virtualization',
+      expectedImprovement: '40% render time reduction'
+    }
+  ],
+  metrics: {
+    avgRenderTime: 18.5,
+    memoryUsage: 42.1,
+    componentCount: 12,
+    slowComponents: 2
+  }
+}
+```
+
+#### Targeted Diagnostics
+
+```javascript
+// Run diagnostics on specific components
+const componentDiagnostics = performanceAnalysis.runPerformanceDiagnostics({
+  focus: 'components',
+  components: ['Dashboard', 'UserProfile', 'DataTable']
+});
+
+// Run memory-focused diagnostics
+const memoryDiagnostics = performanceAnalysis.runPerformanceDiagnostics({
+  focus: 'memory',
+  duration: 30000
+});
+
+// Run render performance diagnostics
+const renderDiagnostics = performanceAnalysis.runPerformanceDiagnostics({
+  focus: 'rendering',
+  threshold: 16 // Flag components slower than 16ms
+});
+```
+
+### 5. **Integration with Development Workflow**
+
+#### Development Mode Features
+
+```javascript
+// Enable development-specific performance features
+if (process.env.NODE_ENV === 'development') {
+  // Auto-start profiling on app load
+  performanceAnalysis.startProfilingSession({
+    duration: 300000, // 5 minutes
+    interval: 5000,   // Every 5 seconds
+    autoEnd: true
+  });
+  
+  // Set up development budgets (more lenient)
+  performanceAnalysis.setPerformanceBudgets({
+    maxRenderTime: 32,  // More lenient for development
+    maxMemoryUsage: 100,
+    maxLoadTime: 3000
+  });
+  
+  // Enable console warnings for performance issues
+  const checkInterval = setInterval(() => {
+    const diagnostics = performanceAnalysis.runPerformanceDiagnostics();
+    if (diagnostics.issues.length > 0) {
+      console.warn('⚠️ Performance issues detected:', diagnostics.issues);
+    }
+  }, 60000); // Check every minute
+}
+```
+
+#### Production Monitoring Setup
+
+```javascript
+// Production-ready performance monitoring
+if (process.env.NODE_ENV === 'production') {
+  // Set strict performance budgets
+  performanceAnalysis.setPerformanceBudgets({
+    maxRenderTime: 16,
+    maxMemoryUsage: 50,
+    maxLoadTime: 1000
+  });
+  
+  // Silent monitoring with error reporting
+  const monitorProduction = () => {
+    const budgetStatus = performanceAnalysis.checkBudgetStatus();
+    if (!budgetStatus.compliant) {
+      // Send to analytics/monitoring service
+      analytics.track('performance_budget_violation', {
+        violations: budgetStatus.violations,
+        score: budgetStatus.score
+      });
+    }
+  };
+  
+  setInterval(monitorProduction, 300000); // Check every 5 minutes
+}
+```
+
+### 6. **Custom Performance Monitoring**
 
 ```javascript
 // Create custom performance monitor
@@ -1136,6 +1521,25 @@ performanceAnalysis.checkMemoryLeaks()
 
 // Performance tests
 performanceAnalysis.runPerformanceTests()
+
+// NEW: Performance budget monitoring
+performanceAnalysis.setPerformanceBudgets({
+  maxRenderTime: 16,
+  maxMemoryUsage: 50,
+  maxLoadTime: 1000
+})
+performanceAnalysis.checkBudgetStatus()
+
+// NEW: Component dependency tracking
+performanceAnalysis.analyzeDependencies()
+
+// NEW: Performance profiling sessions
+const sessionId = performanceAnalysis.startProfilingSession()
+performanceAnalysis.takeSnapshot('user-action')
+performanceAnalysis.endProfilingSession(sessionId)
+
+// NEW: Performance diagnostics
+performanceAnalysis.runPerformanceDiagnostics()
 ```
 
 ### React Integration Commands
@@ -1171,6 +1575,23 @@ const stopMonitoring = detectMemoryLeaks();
 
 // Optimization suggestions
 getOptimizationSuggestions('ComponentName');
+
+// NEW: Performance budget management
+setPerformanceBudgets({ maxRenderTime: 16, maxMemoryUsage: 50 });
+checkBudgetStatus();
+
+// NEW: Component dependency analysis
+analyzeDependencies();
+
+// NEW: Profiling sessions
+startProfilingSession({ duration: 60000, interval: 1000 });
+takeSnapshot('interaction-label');
+endProfilingSession(sessionId);
+
+// NEW: Performance diagnostics
+runPerformanceDiagnostics();
+runPerformanceDiagnostics({ focus: 'components' });
+runPerformanceDiagnostics({ focus: 'memory' });
 
 // Direct monitor access
 window.performanceMonitor.getPerformanceData();

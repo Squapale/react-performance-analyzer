@@ -6,7 +6,14 @@ export {
   runPerformanceTests,
   checkMemoryLeaks,
   detectRegressions,
-  generateFullReport
+  generateFullReport,
+  setPerformanceBudgets,
+  checkBudgetStatus,
+  analyzeDependencies,
+  startProfilingSession,
+  takeSnapshot,
+  endProfilingSession,
+  runPerformanceDiagnostics
 } from './performanceAnalysisExamples.js';
 
 export { default as performanceAnalysis } from './performanceAnalysisExamples.js';

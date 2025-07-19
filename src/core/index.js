@@ -10,7 +10,9 @@ export {
   getOptimizationSuggestions,
   enableDevtools,
   initializePerformanceMonitoring,
-  performanceLogger
+  performanceLogger,
+  PerformanceContext,
+  PerformanceProvider
 } from './performanceMonitoring.js';
 
 export {

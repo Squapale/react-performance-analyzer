@@ -20,7 +20,9 @@ export {
   PerformanceMonitor,
   performanceMonitor,
   initializePerformanceMonitoring,
-  performanceLogger
+  performanceLogger,
+  PerformanceContext,
+  PerformanceProvider
 } from './core/performanceMonitoring.js';
 
 export { 

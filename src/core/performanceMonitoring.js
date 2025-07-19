@@ -1,6 +1,26 @@
 // Performance monitoring utilities
 import React from 'react';
 
+// Performance Context for component hierarchy tracking
+export const PerformanceContext = React.createContext({
+  parentComponent: null,
+  profilingSession: null
+});
+
+// Performance Provider Component
+export const PerformanceProvider = ({ children, componentName, profilingSession }) => {
+  const contextValue = React.useMemo(() => ({
+    parentComponent: componentName,
+    profilingSession
+  }), [componentName, profilingSession]);
+
+  return (
+    <PerformanceContext.Provider value={contextValue}>
+      {children}
+    </PerformanceContext.Provider>
+  );
+};
+
 export class PerformanceMonitor {
   constructor() {
     this.metrics = {
@@ -8,6 +28,8 @@ export class PerformanceMonitor {
       bundleLoadTimes: new Map(),
       memoryUsage: [],
       slowComponents: new Set(),
+      componentDependencies: new Map(), // New: track component relationships
+      renderHistory: new Map(), // New: track render history per component
     };
     
     this.thresholds = {
@@ -15,6 +37,20 @@ export class PerformanceMonitor {
       slowLoad: 1000, // 1 second
       memoryLimit: 50 * 1024 * 1024, // 50MB
     };
+
+    // New: Performance budgets
+    this.performanceBudgets = {
+      renderTime: 16, // ms per component
+      totalRenderTime: 100, // ms per frame
+      memoryUsage: 50 * 1024 * 1024, // 50MB
+      bundleSize: 2 * 1024 * 1024, // 2MB
+      componentCount: 100, // max components per page
+      reRendersPerSecond: 30, // max re-renders per component per second
+    };
+
+    // New: Budget violations tracking
+    this.budgetViolations = [];
+    this.dependencyGraph = new Map(); // Component dependency graph
   }
 
   // Monitor component render performance
@@ -138,6 +174,262 @@ export class PerformanceMonitor {
     
     return recommendations;
   }
+
+  // New: Performance Budget Management
+  setPerformanceBudget(budgetType, value) {
+    if (this.performanceBudgets.hasOwnProperty(budgetType)) {
+      this.performanceBudgets[budgetType] = value;
+      console.log(`📊 Performance budget set: ${budgetType} = ${value}`);
+    } else {
+      console.warn(`⚠️ Unknown budget type: ${budgetType}`);
+    }
+  }
+
+  checkPerformanceBudgets() {
+    const violations = [];
+    const now = Date.now();
+
+    // Check render time budget
+    const recentRenders = Array.from(this.metrics.componentRenderTimes.values());
+    const avgRenderTime = recentRenders.length > 0 
+      ? recentRenders.reduce((sum, time) => sum + time, 0) / recentRenders.length 
+      : 0;
+
+    if (avgRenderTime > this.performanceBudgets.renderTime) {
+      violations.push({
+        type: 'renderTime',
+        budget: this.performanceBudgets.renderTime,
+        actual: avgRenderTime,
+        severity: avgRenderTime > this.performanceBudgets.renderTime * 2 ? 'critical' : 'warning',
+        message: `Average render time ${avgRenderTime.toFixed(2)}ms exceeds budget of ${this.performanceBudgets.renderTime}ms`
+      });
+    }
+
+    // Check total render time per frame
+    const totalRenderTime = recentRenders.reduce((sum, time) => sum + time, 0);
+    if (totalRenderTime > this.performanceBudgets.totalRenderTime) {
+      violations.push({
+        type: 'totalRenderTime',
+        budget: this.performanceBudgets.totalRenderTime,
+        actual: totalRenderTime,
+        severity: 'warning',
+        message: `Total render time ${totalRenderTime.toFixed(2)}ms exceeds budget of ${this.performanceBudgets.totalRenderTime}ms`
+      });
+    }
+
+    // Check memory budget
+    const currentMemory = this.metrics.memoryUsage.length > 0 
+      ? this.metrics.memoryUsage[this.metrics.memoryUsage.length - 1].used 
+      : 0;
+    if (currentMemory > this.performanceBudgets.memoryUsage) {
+      violations.push({
+        type: 'memoryUsage',
+        budget: this.performanceBudgets.memoryUsage,
+        actual: currentMemory,
+        severity: currentMemory > this.performanceBudgets.memoryUsage * 1.5 ? 'critical' : 'warning',
+        message: `Memory usage ${(currentMemory / 1024 / 1024).toFixed(2)}MB exceeds budget of ${(this.performanceBudgets.memoryUsage / 1024 / 1024).toFixed(2)}MB`
+      });
+    }
+
+    // Check component count budget
+    const componentCount = this.metrics.componentRenderTimes.size;
+    if (componentCount > this.performanceBudgets.componentCount) {
+      violations.push({
+        type: 'componentCount',
+        budget: this.performanceBudgets.componentCount,
+        actual: componentCount,
+        severity: 'info',
+        message: `Component count ${componentCount} exceeds budget of ${this.performanceBudgets.componentCount}`
+      });
+    }
+
+    // Store violations with timestamp
+    if (violations.length > 0) {
+      this.budgetViolations.push({
+        timestamp: now,
+        violations
+      });
+
+      // Keep only last 50 violation records
+      if (this.budgetViolations.length > 50) {
+        this.budgetViolations.shift();
+      }
+
+      // Log violations
+      violations.forEach(violation => {
+        const emoji = violation.severity === 'critical' ? '🚨' : violation.severity === 'warning' ? '⚠️' : 'ℹ️';
+        console.warn(`${emoji} Budget violation: ${violation.message}`);
+      });
+    }
+
+    return violations;
+  }
+
+  // New: Component Dependency Tracking
+  trackComponentDependency(parentComponent, childComponent, renderTime) {
+    if (!this.dependencyGraph.has(parentComponent)) {
+      this.dependencyGraph.set(parentComponent, new Set());
+    }
+    this.dependencyGraph.get(parentComponent).add(childComponent);
+
+    // Track render history
+    if (!this.metrics.renderHistory.has(childComponent)) {
+      this.metrics.renderHistory.set(childComponent, []);
+    }
+
+    const history = this.metrics.renderHistory.get(childComponent);
+    history.push({
+      timestamp: Date.now(),
+      renderTime,
+      parentComponent,
+      context: 'dependency'
+    });
+
+    // Keep only last 100 renders per component
+    if (history.length > 100) {
+      history.shift();
+    }
+  }
+
+  getComponentDependencies(componentName) {
+    const dependencies = this.dependencyGraph.get(componentName) || new Set();
+    const dependents = [];
+
+    // Find components that depend on this one
+    for (const [parent, children] of this.dependencyGraph.entries()) {
+      if (children.has(componentName)) {
+        dependents.push(parent);
+      }
+    }
+
+    return {
+      dependencies: Array.from(dependencies),
+      dependents,
+      renderHistory: this.metrics.renderHistory.get(componentName) || []
+    };
+  }
+
+  analyzeComponentBottlenecks() {
+    const bottlenecks = [];
+
+    for (const [componentName, renderTime] of this.metrics.componentRenderTimes.entries()) {
+      const dependencies = this.getComponentDependencies(componentName);
+      const history = dependencies.renderHistory;
+
+      if (history.length < 5) continue; // Need sufficient data
+
+      // Calculate render frequency
+      const recentHistory = history.slice(-10);
+      const timeSpan = recentHistory[recentHistory.length - 1].timestamp - recentHistory[0].timestamp;
+      const renderFrequency = recentHistory.length / (timeSpan / 1000); // renders per second
+
+      // Calculate average render time
+      const avgRenderTime = recentHistory.reduce((sum, h) => sum + h.renderTime, 0) / recentHistory.length;
+
+      // Identify bottlenecks
+      const isBottleneck = (
+        avgRenderTime > this.performanceBudgets.renderTime ||
+        renderFrequency > this.performanceBudgets.reRendersPerSecond ||
+        dependencies.dependencies.length > 10 // too many child components
+      );
+
+      if (isBottleneck) {
+        bottlenecks.push({
+          componentName,
+          avgRenderTime,
+          renderFrequency,
+          dependencyCount: dependencies.dependencies.length,
+          dependentCount: dependencies.dependents.length,
+          issues: [],
+          recommendations: []
+        });
+
+        const bottleneck = bottlenecks[bottlenecks.length - 1];
+
+        // Identify specific issues
+        if (avgRenderTime > this.performanceBudgets.renderTime) {
+          bottleneck.issues.push(`Slow render time: ${avgRenderTime.toFixed(2)}ms`);
+          bottleneck.recommendations.push('Consider memoization with React.memo()');
+        }
+
+        if (renderFrequency > this.performanceBudgets.reRendersPerSecond) {
+          bottleneck.issues.push(`High re-render frequency: ${renderFrequency.toFixed(1)}/sec`);
+          bottleneck.recommendations.push('Check for unnecessary prop changes or state updates');
+        }
+
+        if (dependencies.dependencies.length > 10) {
+          bottleneck.issues.push(`Too many child components: ${dependencies.dependencies.length}`);
+          bottleneck.recommendations.push('Consider component composition or virtualization');
+        }
+      }
+    }
+
+    return bottlenecks.sort((a, b) => b.avgRenderTime - a.avgRenderTime);
+  }
+
+  // New: Performance Profiling Session
+  startProfilingSession(sessionName = 'default') {
+    const session = {
+      name: sessionName,
+      startTime: Date.now(),
+      startMemory: performance.memory ? performance.memory.usedJSHeapSize : 0,
+      initialComponentCount: this.metrics.componentRenderTimes.size,
+      snapshots: []
+    };
+
+    // Take initial snapshot
+    session.snapshots.push(this.takePerformanceSnapshot('session-start'));
+
+    this.currentSession = session;
+    console.log(`🔍 Performance profiling session '${sessionName}' started`);
+
+    return session;
+  }
+
+  takePerformanceSnapshot(label = 'snapshot') {
+    return {
+      label,
+      timestamp: Date.now(),
+      memory: performance.memory ? performance.memory.usedJSHeapSize : 0,
+      componentCount: this.metrics.componentRenderTimes.size,
+      renderTimes: Object.fromEntries(this.metrics.componentRenderTimes),
+      budgetViolations: this.checkPerformanceBudgets()
+    };
+  }
+
+  endProfilingSession() {
+    if (!this.currentSession) {
+      console.warn('⚠️ No active profiling session');
+      return null;
+    }
+
+    const session = this.currentSession;
+    session.endTime = Date.now();
+    session.duration = session.endTime - session.startTime;
+    session.endMemory = performance.memory ? performance.memory.usedJSHeapSize : 0;
+    session.memoryDelta = session.endMemory - session.startMemory;
+
+    // Take final snapshot
+    session.snapshots.push(this.takePerformanceSnapshot('session-end'));
+
+    // Generate session report
+    const report = {
+      session,
+      analysis: {
+        duration: session.duration,
+        memoryDelta: session.memoryDelta,
+        newComponents: session.snapshots[session.snapshots.length - 1].componentCount - session.initialComponentCount,
+        bottlenecks: this.analyzeComponentBottlenecks(),
+        budgetViolations: session.snapshots.reduce((total, snapshot) => 
+          total + snapshot.budgetViolations.length, 0)
+      }
+    };
+
+    this.currentSession = null;
+    console.log(`✅ Performance profiling session '${session.name}' completed`, report);
+
+    return report;
+  }
 }
 
 // Global performance monitor instance
@@ -179,13 +471,44 @@ export const usePerformanceMonitoring = (componentName) => {
       // Record to global monitor
       if (typeof window !== 'undefined' && window.performanceMonitor) {
         window.performanceMonitor.recordRender(operationName, duration);
+        
+        // Check performance budgets
+        window.performanceMonitor.checkPerformanceBudgets();
+        
+        // Track component dependency if parent component is known
+        const parentComponent = React.useContext(PerformanceContext)?.parentComponent;
+        if (parentComponent) {
+          window.performanceMonitor.trackComponentDependency(parentComponent, componentName, duration);
+        }
       }
       
       startTimeRef.current = null;
       return duration;
     }
     return 0;
+  }, [componentName]);
+
+  const getBudgetStatus = React.useCallback(() => {
+    if (typeof window !== 'undefined' && window.performanceMonitor) {
+      return window.performanceMonitor.checkPerformanceBudgets();
+    }
+    return [];
   }, []);
+
+  const getDependencies = React.useCallback(() => {
+    if (typeof window !== 'undefined' && window.performanceMonitor) {
+      return window.performanceMonitor.getComponentDependencies(componentName);
+    }
+    return { dependencies: [], dependents: [], renderHistory: [] };
+  }, [componentName]);
+
+  const isBottleneck = React.useCallback(() => {
+    if (typeof window !== 'undefined' && window.performanceMonitor) {
+      const bottlenecks = window.performanceMonitor.analyzeComponentBottlenecks();
+      return bottlenecks.find(b => b.componentName === componentName) || null;
+    }
+    return null;
+  }, [componentName]);
   
   const getMetrics = React.useCallback(() => {
     return metrics;
@@ -209,6 +532,9 @@ export const usePerformanceMonitoring = (componentName) => {
     startTiming,
     endTiming,
     getMetrics,
+    getBudgetStatus,
+    getDependencies,
+    isBottleneck,
     metrics
   };
 };

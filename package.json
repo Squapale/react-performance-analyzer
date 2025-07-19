@@ -1,6 +1,6 @@
 {
   "name": "performance-analyzer-lib",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "A comprehensive performance analysis library for React applications (Core - MIT License)",
   "main": "dist/index.js",
   "module": "dist/index.js",
